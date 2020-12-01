@@ -18,8 +18,7 @@ class ElipticCurve:
         self.O = self.Point(self.ZERO, self.ZERO)
         self.max_rand = (1 << (self.Ln - 1)) - 1
         
-#         self.P = self.gen_base_point()
-        self.P = self.Point(self.GF(0x72D867F93A93AC27DF9FF01AFFE74885C8C540420), self.GF(0x0224A9C3947852B97C5599D5F4AB81122ADC3FD9B))
+        self.P = self.gen_base_point()
         self.hash_func = lambda T: int.from_bytes(sha256(T).digest(), "big")
         
     def gen_base_point(self):
@@ -30,8 +29,8 @@ class ElipticCurve:
     
     def random_num(self, lo=1, hi=None):
         if hi is None:
-            hi = self.max_rand#self.n - 1
-        return random.randint(lo, hi) % (1 << (self.Ln - 1)) - 1
+            hi = self.max_rand
+        return random.randint(lo, hi)
     
     def random_point(self):
         return self.Point.random()
@@ -43,9 +42,7 @@ class ElipticCurve:
         Fe = self.ZERO
         while Fe == self.ZERO:
             e = self.random_num()
-#             e = 0x1025E40BD97DB012B7A1D79DE8E12932D247F61C6
             R = self.P.mul(e)
-            print(R, self.P, e)
             Fe = R.x
         return Fe, e
     
@@ -56,10 +53,9 @@ class ElipticCurve:
         return -self.P.mul(d)
     
     def sign(self, T, d):
-#         assert type(T) == bytes 
+        assert type(T) == bytes 
         
-#         h = self.GF(self.hash_func(T))
-        h = self.GF(0x03A2EB95B7180166DDF73532EEB76EDAEF52247FF)
+        h = self.GF(self.hash_func(T))
         
         if h == self.ZERO:
             h = self.ONE
@@ -69,18 +65,16 @@ class ElipticCurve:
             while r == 0:
                 Fe, e = self.presign()
                 y = h * Fe
-                print(y)
+                y.value = y.value & self.max_rand
                 r = y.value
             s = (e + d*r) % self.n
-            
         D = ElipticCurve.concat_to_signature(r, s, self.Ld)
         return T, D
 
     def check_signature(self, T, D, Q):
-#         assert type(T) == bytes 
+        assert type(T) == bytes 
         
-#         h = self.GF(self.hash_func(T))
-        h = self.GF(0x03A2EB95B7180166DDF73532EEB76EDAEF52247FF)
+        h = self.GF(self.hash_func(T))
         
         if h == self.ZERO:
             h = self.ONE
@@ -88,13 +82,12 @@ class ElipticCurve:
         r, s = ElipticCurve.split_signature(D, self.Ld)
 
         if not 0 < r < self.n or not 0 < s < self.n:
-            print("WHAHAHHAHHAHA")
             return False
 
         R = self.P.mul(s) + Q.mul(r)
-        y = h * R.x
+        y = h * R.x 
+        y.value = y.value & self.max_rand
         r_hat = self.GF.to_int(y, self.Ln)
-        print(r_hat, r)
         return r_hat == r
 
     @staticmethod
